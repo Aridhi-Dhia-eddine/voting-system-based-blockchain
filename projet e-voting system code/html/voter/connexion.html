@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion</title>
+    <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+    <script>
+        //User=new Object();
+        
+        async function verify_token() {
+            const token=document.getElementById('token').value
+            res=await verif(token)
+            console.log(res)
+            if(res==true){
+                alert('ok bien')
+                setTimeout(() => {
+                    window.location.href = 'vote.html?token='+token; // Remplacez par l'URL de votre page cible
+                }, 1000);
+            }else{
+                alert('verifier votre token')
+            }
+           /* listt=captentObject('user')
+            
+            const token=document.getElementById('token').value
+            if (token==''){
+                alert('Veuillez saisir votre Token')
+            }else{
+                
+                //console.log(listt['token'])
+                
+                console.log(listt[0])
+                for (let i=0;i<listt.length;i++){
+                    console.log('ok')
+                    
+                    //'efbf0c51cadd4e3ca1ed072b47cb8b07d803eb1184b1d9b61136b5cf01449de8'
+                }
+            }*/
+        }
+
+    </script>
+    <div class="container">
+        <h1>Connexion</h1>
+        <form>
+            <label for="email">Token</label>
+            <input type="text" id="token" name="token" required>
+        </form>
+        <button type="submit" onclick="verify_token()">Se Connecter</button>
+    </div>
+    <script src="../../js/filtration.js"></script>
+</body>
+</html>

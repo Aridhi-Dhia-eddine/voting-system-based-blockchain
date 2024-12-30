@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription des Électeurs</title>
+    <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+    <script src="../../node_modules/crypto-js/crypto-js.js"></script>
+    <script>
+    
+    //var CryptoJS = require("../../node_modules/crypto-js/sha256");
+    async function sendTransaction() {
+        /*const fileData = document.getElementById('fileData').value;  // Le fichier sélectionné (base64)*/
+        const file = document.getElementById('filePreview').src;
+        const hashedfile = CryptoJS.SHA256(file).toString();
+
+        var token="";
+        var user={}
+
+        var input = document.getElementById('photoPreview').src;
+        const hashedPhotoData = CryptoJS.SHA256(input).toString();
+
+        const email = document.getElementById('emailVoter').value
+
+        if ((input=="")||(file=="")||(email=="")){
+            
+            alert("verifier bien vos champs")
+        }
+        else{
+            token = CryptoJS.SHA256(hashedPhotoData+hashedfile).toString();
+
+            user = {
+            fileData:hashedfile,
+            photoData:hashedPhotoData,
+            token: token ,
+            mail:email  
+            };
+
+                try {
+                const response = await fetch('http://localhost:3000/transact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ data: { user } })
+            });
+            const result = await response.json();
+            if (result!=null){
+                // code pour copier le token automaiquement 
+                var tempInput = document.createElement("input");
+                tempInput.style.position = "absolute";
+                tempInput.style.left = "-9999px";
+                tempInput.value = token;
+                document.body.appendChild(tempInput);
+
+                // Sélectionner le texte et le copier
+                tempInput.select();
+                document.execCommand("copy");
+
+                alert('Inscription added successfully your token is copied in paper-press ')
+                
+                setTimeout(() => {
+                    window.location.href = 'connexion.html'; // Remplacez par l'URL de votre page cible
+                }, 1000);
+            }
+
+           
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').innerText = 'Error: ' + error.message;
+
+            }
+        }
+
+    }
+    </script>
+    <div class="container">
+        <h1>Inscription des Électeurs</h1>
+        <div id="alertPlaceholder"></div>
+        <form action="/register" method="post">
+            <!--<label for="name">Nom Complet</label>
+            <input type="text" id="name" name="name" required>-->
+            <label for="fileUpload" class="file-upload-label">
+                sélectionner votre CIN
+                <input type="file" id="fileUpload" name="fileUpload" class="file-upload-input" onchange="showFileNameAndPreview()">
+            </label>
+            <span id="fileName"></span>
+            <br><br>
+            <img id="filePreview" alt="Aperçu du fichier" style="display: none; max-width: 100%; height: auto;">
+            <br><br>
+        </form>
+            <h1>Capture Photo with Webcam and Mobile</h1>
+            <video id="video" autoplay></video>
+            <button id="snap" class="camera-button">Prendre une photo</button>
+            <br><br>
+            <canvas id="canvas" style="display:none;"></canvas>
+            <img id="photoPreview" alt="Aperçu de la photo">
+            <br><br>
+            <input type="email" id="emailVoter" name="emailVoter" class="form-input" placeholder="exemple@gmail.com" required>
+            <br><br>
+            
+            <button type="submit" onclick="sendTransaction()">S'inscrire</button>
+            <br><br>
+            <a class="lien" href="connexion.html">vous avez un compte ? connectez vous </a>
+        
+    </div>
+
+   <script src="../../node_modules/crypto-js/sha256.js"></script>
+    <script src="../../js/script.js"></script>
+</body>
+</html>

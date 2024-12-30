@@ -1,0 +1,249 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>election results</title>
+    <link rel="stylesheet" href="../../assets/fontawesome-free-6.7.1-web/css/all.min.css">
+    <link rel="stylesheet" href="../../css/bootstrap.min.css">
+    
+</head>
+<body>
+    <script src="../../node_modules/crypto-js/crypto-js.js"></script>
+    <script>
+        window.onload=function(){
+          //fetchConsituency()
+          getElections()
+        }
+        async function getElections(){
+  const today = new Date();
+  const month = today.getMonth() + 1;
+  const year = today.getFullYear();
+  const day = today.getDate();
+  const dateComplet = `${year}-${month}-${day}`; // Format YYYY-MM-DD
+
+  try {
+    var elections = await captentObject('election');
+    console.log('elections', elections);
+
+    for (let i = 0; i < elections.length; i++) {
+      if (elections[i] != null) {
+        // Vérification que l'élection est terminée (dateComplet >= endElection)
+        if (dateComplet >= elections[i]['endElection']) {
+          var tableElections = document.getElementById('tableElections');
+          const row = document.createElement('tr');
+
+          const nameCell = document.createElement('td');
+          nameCell.textContent = elections[i]['name'];
+          row.appendChild(nameCell);
+
+          const constituencyCell = document.createElement('td');
+          constituencyCell.textContent = elections[i]['constituency'];
+          row.appendChild(constituencyCell);
+
+          const startCell = document.createElement('td');
+          startCell.textContent = elections[i]['startElection'];
+          row.appendChild(startCell);
+
+          const endCell = document.createElement('td');
+          endCell.textContent = elections[i]['endElection'];
+          row.appendChild(endCell);
+
+          const nn = elections[i]['name'];
+
+          const btn = document.createElement('td');
+          btn.innerHTML = `<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#resultElection">results</button>`;
+          btn.addEventListener('click', function() {
+            //console.log(nn)
+            showResults(nn);
+          });
+          row.appendChild(btn);
+
+          tableElections.appendChild(row);
+        }
+      }
+    }
+
+  } catch (error) {
+    alert(error);
+  }
+}
+
+    async function calculateRes(nn){
+        try{
+            var votes= await captentObject('vote')
+            listeTot=[]
+            console.log(votes)
+            for(i=0;i<votes.length;i++){
+                liVote=[]
+                if((votes[i]!=null)&&(votes[i]['election']==nn)){
+                    liVote=votes[i]['vote']
+                    for (j=0;j<liVote.length;j++){
+                        element=CryptoJS.AES.decrypt(liVote[j], 'myKey');
+                        element=element.toString(CryptoJS.enc.Utf8);
+                        element=parseInt(element,10)
+                        liVote[j]=element
+                        if (isNaN(liVote[j])){
+                            liVote[j]=0                       
+                         }
+                    }
+                    listeTot.push(liVote)
+                    
+                
+                }
+                            
+            }
+            console.log(listeTot)
+            tot=sumByIndex(listeTot)
+            return tot
+            console.log(tot)
+        }catch(error){
+
+        }
+    }
+
+    function sumByIndex(lists) {
+    // Détermine la longueur de la plus longue sous-liste
+    const maxLength = Math.max(...lists.map(sublist => sublist.length));
+    
+    // Initialise un tableau pour stocker les sommes par indice
+    const sums = Array(maxLength).fill(0);
+
+    // Itère à travers chaque sous-liste
+    for (let i = 0; i < lists.length; i++) {
+        for (let j = 0; j < lists[i].length; j++) {
+            sums[j] += lists[i][j];
+        }
+    }
+
+    return sums;
+    }
+
+
+    async function showResults(nn){
+        tot=await calculateRes(nn)
+        var candidates= await captentObject('candidate')
+        cand=[]
+        image=[]
+        for(i=0;i<candidates.length;i++){
+            if((candidates[i]!=null)&&(candidates[i]['election']==nn)){
+                name=candidates[i]['firstName']+' '+candidates[i]['lastName']
+                cand.push(name)
+                image.push(candidates[i]['image'])
+                name=''
+            }
+        }
+        
+        if(cand.length==tot.length){
+            for(i=0;i<cand.length;i++){
+                var ul=document.getElementById('candidatesList')
+                var li=document.createElement('li')
+                var img =document.createElement('img')
+                img.src=image[i]
+                img.style.width = '80px';
+                img.style.height = '80px';
+                li.appendChild(img)
+                li.appendChild(document.createTextNode(cand[i]));
+
+                const max = Math.max(...tot);
+                console.log('max: ',max)
+                li.appendChild(document.createTextNode( '      - Votes: ' + tot[i]));
+                if(tot[i]==max){
+                    var crown = document.createElement('span');
+                    crown.innerHTML = ' 👑'; // Emoji de couronne pour le gagnant
+                    li.appendChild(crown);
+                }
+
+                li.className = 'list-group-item';
+                ul.appendChild(li)
+            }
+        }else{
+            console.log('no')
+        }
+    }
+</script>
+    <style>
+        .posiSpan{
+          margin-right: 10px;
+          text-align: right;
+        }
+        .textFont{
+          font-size: 20px;
+          font-family:Arial, Helvetica, sans-serif;
+        }
+        .tabStyle{
+          margin-top: 50px;
+          width: 90%;
+          margin: auto;
+         
+        }
+        </style>
+        <nav class="navbar navbar-expand-sm bg-primary navbar-light">
+            <div class="container-fluid">
+              <ul class="navbar-nav">
+                <li class="nav-item">
+                  <a class="nav-link text-light textFont" href="../admin/management.html">home</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link text-light textFont" href="../admin/constitencies.html">Constituencies</a>
+                </li>
+               <li class="nav-item">
+                  <a class="nav-link text-light textFont" href="Election.html">Elections</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link text-light textFont" href="../admin/candidate.html">candidates</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link text-light textFont" href="../admin/results.html">Elections results</a>
+                </li>
+              </ul>
+            </div>
+          </nav>
+    
+          <!--***********************************************************-->
+    
+        <div class="container-fluid mt-4">
+          <div class="row ">
+            <div class="col d-flex justify-content-between align-items-center">
+              <h1 class="hClass">Elections results</h1>
+            </div>
+              
+              
+            <table class="table table-hover tabStyle">
+              <thead>
+                <tr>
+                    <th>Election Name</th>
+                    <th >Constituency</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>calculate Results</th>
+                </tr>
+              </thead>
+              <tbody id="tableElections">
+                
+               
+              </tbody>
+            </table>
+          </div>
+        </div>
+    <!--************************************** modal of results *****************************-->
+    <div class="modal fade" id="resultElection" tabindex="-1" role="dialog" aria-labelledby="candidatesModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="candidatesModalLabel">Election Result</h5>
+                </div>
+                <div class="modal-body">
+                    <ul id="candidatesList" class="list-group">
+                        <!-- La liste des candidats sera générée dynamiquement -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+      </div>
+        <script src="../../js/filtration.js"></script>
+        <script src="../../js/jquery.min.js"></script>
+        <script src="../../js/popper.min.js"></script>
+        <script src="../../js/bootstrap.min.js"></script>
+        <script src="../../assets/fontawesome-free-6.7.1-web/js/all.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vote</title>
+    <link rel="stylesheet" href="../../css/style.css">
+    <link rel="stylesheet" href="../../css/bootstrap.min.css">
+</head>
+<body>
+    <script src="../../node_modules/crypto-js/crypto-js.js"></script>
+<script>
+    window.onload=function(){
+        fetchActivElections()
+    }
+    async function fetchActivElections() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // Ajout de zéro si nécessaire
+    const year = today.getFullYear();
+    const day = String(today.getDate()).padStart(2, '0'); // Ajout de zéro si nécessaire
+    const dateComplet = `${year}-${month}-${day}`; // Format YYYY-MM-DD pour correspondre avec les dates
+
+    try {
+        const elections = await captentObject('election');
+        const tableElections = document.getElementById('tableElections');
+        let hasActiveElection = false; // Variable pour vérifier s'il y a des élections actives
+
+        for (let election of elections) {
+            if (election != null) {
+                const startElectionDate = new Date(election['startElection']);
+                const endElectionDate = new Date(election['endElection']);
+                const todayDate = new Date(dateComplet);
+
+                // Vérification si la date actuelle est dans l'intervalle des dates de l'élection
+                if (todayDate >= startElectionDate && todayDate < endElectionDate) {
+                    hasActiveElection = true; // Une élection active a été trouvée
+
+                    const row = document.createElement('tr');
+
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = election['name'];
+                    row.appendChild(nameCell);
+
+                    const constCell = document.createElement('td');
+                    constCell.textContent = election['constituency'];
+                    row.appendChild(constCell);
+
+                    const startCell = document.createElement('td');
+                    startCell.textContent = election['startElection'];
+                    row.appendChild(startCell);
+
+                    const endCell = document.createElement('td');
+                    endCell.textContent = election['endElection'];
+                    row.appendChild(endCell);
+
+                    const nn = election['name'];
+                    const buttonCell = document.createElement('td');
+
+                    // Appel à 'cherche' pour vérifier si l'utilisateur a déjà voté
+                    const r = await cherche(nn, token);
+                    console.log(`cherche result for ${nn}:`, r);
+
+                    // Si r == true, on désactive le bouton, sinon on laisse actif
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-danger';
+                    button.textContent = 'vote';
+                    button.dataset.bsToggle = 'modal';
+                    button.dataset.bsTarget = '#candidatesModal';
+
+                    if (r === true) {
+                        button.disabled = true;
+                    } else {
+                        button.addEventListener('click', function () {
+                            showCandidates(nn);
+                        });
+                    }
+
+                    buttonCell.appendChild(button);
+                    row.appendChild(buttonCell);
+                    tableElections.appendChild(row);
+                }
+            }
+        }
+
+        // Si aucune élection active n'a été trouvée
+        if (!hasActiveElection) {
+            const row = document.createElement('tr');
+            const noActiveCell = document.createElement('td');
+            noActiveCell.colSpan = 5; // Utilisez colspan pour occuper toute la ligne
+            noActiveCell.textContent = 'Aucune élection active en ce moment';
+            row.appendChild(noActiveCell);
+            tableElections.appendChild(row);
+        }
+
+    } catch (error) {
+        alert(error);
+    }
+}
+
+    async function showCandidates(name){
+      try{
+        
+        var candidates= await captentObject('candidate')
+        candidate=0
+        for(i=0;i<candidates.length;i++){
+          if((candidates[i]!=null)&&(candidates[i]['election']==name)){
+            var ul=document.getElementById('candidatesList')
+            var li=document.createElement('li')
+            var img =document.createElement('img')
+            
+            img.src=candidates[i]['image']
+            img.style.width = '80px';
+            img.style.height = '80px';
+            li.appendChild(img)
+
+            let nn=candidates[i].firstName + ' ' + candidates[i].lastName
+            let electionN=candidates[i]['election']
+            li.appendChild(document.createTextNode(' '+candidates[i].firstName + ' ' + candidates[i].lastName));
+            li.className = 'list-group-item';
+            const buttonCell = document.createElement('span');
+            buttonCell.innerHTML=`<button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#candidatesModal">vote</button>`
+            buttonCell.addEventListener('click', function() {
+                //console.log(nn)
+                console.log(nn)
+                voting(nn,electionN)
+            })
+
+            li.appendChild(buttonCell)
+            ul.appendChild(li)
+          }
+        }
+      }catch(error){
+        alert(error)
+      }
+    
+    } 
+
+
+    async function voting(nn,name){
+        try{
+            lis=[]
+            var candidates= await captentObject('candidate')
+            for(i=0;i<candidates.length;i++){
+                if ((candidates[i]!=null)&&(candidates[i]['election']==name)){
+                    lis.push(candidates[i]['firstName']+' '+candidates[i]['lastName'])
+                }
+            }
+            for (i=0;i<lis.length;i++){
+                if(lis[i]==nn){
+                    lis[i]=1
+                }else{
+                    lis[i]=0
+                }
+            }
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            
+            /*////////////////////////////////// partie cryptage de vote ///////////////////////*/
+            for (i=0;i<lis.length;i++){
+                chif=CryptoJS.AES.encrypt(lis[0].toString(),'myKey').toString()
+                lis[i]=chif
+            }
+            //console.log(lis)
+            /**////////////////////////////////////////////////////////////////////////*/
+            
+            //console.log(f)
+            vote={
+                election:name,
+                vote:lis,
+                token:token
+            }
+            console.log(vote)
+            try {
+                const response = await fetch('http://localhost:3000/transact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ data: { vote } })
+            });
+            }catch(error){
+                alert('problem in adding vote')
+            }
+            //console.log()
+            /*vv=encryptVote(lis)
+            //console.log(vv[0])
+            enc=vv[0]
+            enc1=vv[0]
+            plain=vote(enc,enc1)
+            console.log(plain)
+            console.log(lis)*/
+        }catch(error){
+            alert(error)
+        }
+        
+    }
+
+    async function calculateRes(nn){
+        try{
+            var votes= await captentObject('vote')
+            listeTot=[]
+            console.log(votes)
+            for(i=0;i<votes.length;i++){
+                liVote=[]
+                if((votes[i]!=null)&&(votes[i]['election']==nn)){
+                    liVote=votes[i]['vote']
+                    for (j=0;j<liVote.length;j++){
+                        element=CryptoJS.AES.decrypt(liVote[j], 'myKey');
+                        element=element.toString(CryptoJS.enc.Utf8);
+                        element=parseInt(element,10)
+                        liVote[j]=element
+                        if (isNaN(liVote[j])){
+                            liVote[j]=0                       
+                         }
+                    }
+                    listeTot.push(liVote)
+                    
+                
+                }
+                            
+            }
+            console.log(listeTot)
+            tot=sumByIndex(listeTot)
+            return tot
+            console.log(tot)
+        }catch(error){
+
+        }
+    }
+ 
+</script>
+<style>
+    .aa{
+        text-decoration: none;
+    }
+</style>
+<div class="container">
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col d-flex justify-content-between align-items-center">
+                <h1 class="hClass">Elections</h1>
+                  
+                <a class="aa" href="../voter/voirRes.html">Resultats</a>
+            </div>
+          <table class="table table-hover tabStyle">
+            <thead>
+              <tr>
+                  <th>Election Name</th>
+                  <th >Constituency</th>
+                  <th>Start Date</th>
+                  <th>End Date</th>
+                  <th>Vote</th>
+              </tr>
+            </thead>
+            <tbody id="tableElections">
+              
+             
+            </tbody>
+        </table>
+    </div>
+</div>
+
+  <!--************************************** modal of candidates *****************************-->
+<div class="modal fade" id="candidatesModal" tabindex="-1" role="dialog" aria-labelledby="candidatesModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="candidatesModalLabel">Liste des Candidats</h5>
+            </div>
+            <div class="modal-body">
+                <ul id="candidatesList" class="list-group">
+                    <!-- La liste des candidats sera générée dynamiquement -->
+                </ul>
+            </div>
+        </div>
+    </div>
+  </div>
+
+
+    <script src="../../js/filtration.js"></script>
+    <script src="../../js/bootstrap.min.js"></script>
+</body>
+</html>
